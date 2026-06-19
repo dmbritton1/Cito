@@ -1,0 +1,32 @@
+# Secrets — never commit. Use .env (gitignored) + a committed .env.example.
+.env
+.env.*
+!.env.example
+
+# Python (cloud/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Go (agent/)
+/agent/bin/
+*.exe
+*.test
+*.out
+
+# Audio scratch / generated artifacts
+*.wav
+*.mp3
+*.ulaw
+*.raw
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
