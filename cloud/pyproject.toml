@@ -1,0 +1,26 @@
+[project]
+name = "cito-cloud"
+version = "0.0.0"
+description = "Cito cloud — AI office paging system"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "python-dotenv",
+    "gTTS",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
