@@ -38,3 +38,51 @@ def test_empty_after_cleaning_raises():
 def test_too_long_raises():
     with pytest.raises(CleanedEmptyError):
         clean("word " * 400)
+
+
+from unittest.mock import patch
+
+from cito.engine import template_fallback, generate_script
+
+
+def test_template_fallback_joins_fragments():
+    out = template_fallback(["It is 75 and sunny.", "The S&P 500 rose 1 percent."])
+    assert "75 and sunny" in out
+    assert "S&P 500 rose 1 percent" in out
+
+
+def test_generate_script_uses_fallback_without_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    out = generate_script(["It is 75 and sunny."])
+    assert "75 and sunny" in out
+
+
+def test_generate_script_calls_gemma_and_cleans(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+
+    class FakeResp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"candidates": [{"content": {"parts": [
+                {"text": '"Good morning team, 75 and sunny today!"'}
+            ]}}]}
+
+    with patch("cito.engine.httpx.post", return_value=FakeResp()) as mock_post:
+        out = generate_script(["It is 75 and sunny."])
+    assert out == "Good morning team, 75 and sunny today!"
+    assert mock_post.called
+
+
+def test_generate_script_falls_back_on_gemma_error(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+
+    def boom(*a, **k):
+        raise RuntimeError("network down")
+
+    with patch("cito.engine.httpx.post", side_effect=boom):
+        out = generate_script(["It is 75 and sunny."])
+    assert "75 and sunny" in out  # fell back to template
