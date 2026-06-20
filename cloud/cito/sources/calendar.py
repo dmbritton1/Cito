@@ -3,7 +3,7 @@
 Structured data queried by date (spec 3.6), a sibling to weather/stocks — NOT RAG.
 """
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta  # noqa: F401  (date kept for test monkeypatching seam)
 
 import httpx
 import icalendar
@@ -12,8 +12,20 @@ import recurring_ical_events
 from cito import config
 
 
+def _local_tz():
+    """The machine's local timezone (monkeypatchable in tests)."""
+    return datetime.now().astimezone().tzinfo
+
+
+def _now_local() -> datetime:
+    """Current local datetime (monkeypatchable in tests)."""
+    return datetime.now(_local_tz())
+
+
 def _fmt_time(dt: datetime) -> str:
-    """Spoken-friendly clock time, e.g. '9 AM', '2:30 PM'."""
+    """Spoken-friendly clock time in local tz, e.g. '9 AM', '2:30 PM'."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(_local_tz())
     hour = dt.hour % 12 or 12
     ampm = "AM" if dt.hour < 12 else "PM"
     return f"{hour}:{dt.minute:02d} {ampm}" if dt.minute else f"{hour} {ampm}"
@@ -35,8 +47,8 @@ class CalendarSource:
         resp.raise_for_status()
         cal = icalendar.Calendar.from_ical(resp.text)
 
-        today = date.today()
-        start = datetime.combine(today, time.min)
+        today = _now_local().date()
+        start = datetime.combine(today, time.min, tzinfo=_local_tz())
         end = start + timedelta(days=1)
         occurrences = recurring_ical_events.of(cal).between(start, end)
 
@@ -44,6 +56,9 @@ class CalendarSource:
         for ev in occurrences:
             dtstart = ev.get("DTSTART").dt
             all_day = not isinstance(dtstart, datetime)
+            # Convert tz-aware datetimes to local once so display and sort agree
+            if isinstance(dtstart, datetime) and dtstart.tzinfo is not None:
+                dtstart = dtstart.astimezone(_local_tz())
             events.append({
                 "summary": str(ev.get("SUMMARY", "")).strip(),
                 "start": "all day" if all_day else _fmt_time(dtstart),

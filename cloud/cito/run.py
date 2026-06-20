@@ -20,7 +20,7 @@ def main() -> None:
 
     ann = sub.add_parser("announce", help="generate and/or send an announcement")
     ann.add_argument("--source", action="append", default=[], dest="sources",
-                     help="source key (repeatable): weather, stocks")
+                     help="source key (repeatable): weather, stocks, calendar")
     ann.add_argument("--message", help="send this exact text, skipping generation")
     ann.add_argument("--print", action="store_true", dest="print_only",
                      help="print the script instead of sending")

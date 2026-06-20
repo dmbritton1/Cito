@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -24,6 +24,18 @@ END:VEVENT
 END:VCALENDAR
 """
 
+ICS_UTC = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//test//EN
+BEGIN:VEVENT
+UID:3@test
+SUMMARY:UTC event
+DTSTART:20260622T140000Z
+DTEND:20260622T150000Z
+END:VEVENT
+END:VCALENDAR
+"""
+
 
 class _FakeResp:
     text = ICS
@@ -31,12 +43,17 @@ class _FakeResp:
         pass
 
 
-def _pin_today(monkeypatch):
-    class FakeDate(date):
-        @classmethod
-        def today(cls):
-            return date(2026, 6, 22)
-    monkeypatch.setattr("cito.sources.calendar.date", FakeDate)
+class _FakeRespUTC:
+    text = ICS_UTC
+    def raise_for_status(self):
+        pass
+
+
+def _pin_today(monkeypatch, tz=timezone.utc):
+    """Pin _local_tz and _now_local so fetch() uses 2026-06-22 in UTC."""
+    monkeypatch.setattr("cito.sources.calendar._local_tz", lambda: tz)
+    fixed = datetime(2026, 6, 22, 12, 0, tzinfo=tz)
+    monkeypatch.setattr("cito.sources.calendar._now_local", lambda: fixed)
 
 
 def test_fetch_expands_recurrence_and_sorts(monkeypatch):
@@ -67,3 +84,16 @@ def test_prompt_fragment_lists_events():
 def test_prompt_fragment_empty():
     frag = CalendarSource().prompt_fragment({"events": []})
     assert frag == "There are no events scheduled today."
+
+
+def test_fetch_utc_event_converted_to_local(monkeypatch):
+    """A UTC DTSTART (14:00Z) must display as 9 AM in US/Eastern (UTC-5, no DST)."""
+    eastern = timezone(timedelta(hours=-5))
+    _pin_today(monkeypatch, tz=eastern)
+    monkeypatch.setattr("cito.sources.calendar.httpx.get", lambda *a, **k: _FakeRespUTC())
+    monkeypatch.setattr("cito.sources.calendar.config.load_config",
+                        lambda: {"calendar_url": "https://x/feed.ics"})
+    events = CalendarSource().fetch()["events"]
+    assert len(events) == 1
+    assert events[0]["summary"] == "UTC event"
+    assert events[0]["start"] == "9 AM"
