@@ -21,6 +21,18 @@
     <label><input type="checkbox" id="src-weather" value="weather" /> Weather</label>
     <label><input type="checkbox" id="src-stocks" value="stocks" /> Stocks</label>
   </fieldset>
+  <fieldset>
+    <legend>Voice / personality</legend>
+    <label for="preset">Preset:</label>
+    <select id="preset"></select>
+    <textarea id="voice" placeholder="How should announcements sound? (tone, priorities)"
+              style="min-height:4rem; margin-top:.5rem;"></textarea>
+    <div style="margin-top:.5rem;">
+      <button id="save-voice">Save voice</button>
+      <button id="preview">Preview</button>
+    </div>
+    <div id="preview-out" style="margin-top:.5rem; font-style:italic; color:#333;"></div>
+  </fieldset>
   <p>Tick sources and <b>Generate</b>, or just type a custom message below, then <b>Send</b>.</p>
   <textarea id="text" placeholder="Announcement text..."></textarea>
   <div style="margin-top:.5rem;">
@@ -36,6 +48,45 @@
     function selectedSources() {
       return ["weather", "stocks"].filter((s) => $("src-" + s).checked);
     }
+
+    // --- voice editor ---
+    let PRESETS = {};
+    async function loadConfig() {
+      const cfg = await (await fetch("/config")).json();
+      PRESETS = cfg.presets || {};
+      const sel = $("preset");
+      sel.innerHTML = "";
+      for (const name of Object.keys(PRESETS)) {
+        const o = document.createElement("option");
+        o.value = name; o.textContent = name; sel.appendChild(o);
+      }
+      if (cfg.preset) sel.value = cfg.preset;
+      $("voice").value = cfg.voice || "";
+    }
+    $("preset") && ($("preset").onchange = () => { $("voice").value = PRESETS[$("preset").value] || ""; });
+    $("save-voice").onclick = async () => {
+      status("Saving voice...");
+      const r = await fetch("/voice", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ voice: $("voice").value, preset: $("preset").value }),
+      });
+      const data = await r.json();
+      $("voice").value = data.voice;
+      status("Voice saved.");
+    };
+    $("preview").onclick = async () => {
+      const sources = selectedSources();
+      if (sources.length === 0) { status("Tick at least one source to preview."); return; }
+      status("Previewing...");
+      const r = await fetch("/preview", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ sources, voice: $("voice").value }),
+      });
+      const data = await r.json();
+      $("preview-out").textContent = "Preview: " + data.text;
+      status("Preview ready (not sent).");
+    };
+    loadConfig();
 
     $("generate").onclick = async () => {
       const sources = selectedSources();
