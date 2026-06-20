@@ -40,7 +40,26 @@ shared/   Wire-format / cloud↔agent contract definitions
 - [Technical Specification & Architecture](docs/ai-pager-spec.md)
 - [Phased Development Plan](docs/ai-pager-development-plan.md)
 
+## Running the Phase 1 console
+
+From `cloud/`:
+
+```bash
+# Web console (then open http://127.0.0.1:8000)
+uv run uvicorn cito.web.app:app --reload
+
+# Or the CLI
+uv run python -m cito.run announce --source weather --source stocks
+uv run python -m cito.run announce --message "All-hands at 3pm."
+uv run python -m cito.run announce --source weather --print   # generate only, no send
+```
+
+Listen in VLC: Open Network → Open RTP/UDP Stream → Protocol **RTP**, Mode
+**Multicast**, address `224.0.1.75`, port `10000`. Start VLC listening *before*
+clicking Send (RTP multicast is fire-and-forget).
+
 ## Status
 
-Pre-Phase-0. Repository initialized; planning docs in place. Phase 0 (foundations +
-the RTP spike) is the next step.
+Phase 0 complete (RTP spike validated in VLC, Gemma round-trip). Phase 1 in progress:
+content engine (Gemma + defensive `clean()` + template fallback), weather + stocks
+sources, gTTS → µ-law → multicast RTP pipeline, and a CLI + one-page dev console.
