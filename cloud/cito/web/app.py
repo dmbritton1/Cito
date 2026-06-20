@@ -32,7 +32,8 @@ def generate(req: GenerateRequest) -> dict:
 
 @app.post("/send")
 def send(req: SendRequest) -> dict:
-    if not req.text or not req.text.strip():
-        raise HTTPException(status_code=400, detail="empty announcement")
-    result = pipeline.send_announcement(req.text)
+    try:
+        result = pipeline.send_announcement(req.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True, "packets": result.packets}

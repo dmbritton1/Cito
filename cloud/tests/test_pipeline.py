@@ -39,6 +39,14 @@ def test_send_announcement_wires_tts_encode_delivery():
     assert result.packets == 42
 
 
+def test_generate_announcement_skips_unknown_key():
+    with patch("cito.pipeline.SOURCES", {
+        "weather": _FakeSource("weather", "It is sunny."),
+    }), patch("cito.pipeline.generate_script", side_effect=lambda frags: " | ".join(frags)):
+        out = pipeline.generate_announcement(["weather", "bogus"])
+    assert out == "It is sunny."
+
+
 def test_send_announcement_rejects_empty_text():
     with pytest.raises(ValueError):
         pipeline.send_announcement("   ")

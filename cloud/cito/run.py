@@ -24,7 +24,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.message:
+    if args.message and args.message.strip():
         text = args.message
     else:
         if not args.sources:

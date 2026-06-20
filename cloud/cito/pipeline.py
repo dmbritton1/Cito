@@ -18,7 +18,9 @@ def generate_announcement(source_keys: list[str]) -> str:
     """Fetch each enabled source, combine fragments, and produce a clean script."""
     fragments = []
     for key in source_keys:
-        source = SOURCES[key]
+        source = SOURCES.get(key)
+        if source is None:
+            continue
         try:
             data = source.fetch()
             fragments.append(source.prompt_fragment(data))
