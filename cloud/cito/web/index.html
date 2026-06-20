@@ -59,6 +59,35 @@
       return ["weather", "stocks"].filter((s) => $("src-" + s).checked);
     }
 
+    // --- document upload ---
+    let DOC_TEXT = "";
+    function docIncluded() { return DOC_TEXT && $("doc-include").checked; }
+    $("doc-load").onclick = async () => {
+      const f = $("doc-file").files[0];
+      if (!f) { $("doc-status").textContent = "Choose a file first."; return; }
+      $("doc-status").textContent = "Loading " + f.name + "...";
+      const fd = new FormData(); fd.append("file", f);
+      const r = await fetch("/upload", { method: "POST", body: fd });
+      if (!r.ok) {
+        DOC_TEXT = "";
+        $("doc-toggle-wrap").style.display = "none";
+        $("doc-status").textContent = "Rejected: " + ((await r.json()).detail || "upload failed");
+        return;
+      }
+      const data = await r.json();
+      DOC_TEXT = data.text;
+      $("doc-name").textContent = "Document: " + data.filename + " (" + data.chars + " chars)";
+      $("doc-include").checked = true;
+      $("doc-toggle-wrap").style.display = "inline";
+      $("doc-status").textContent = "Loaded.";
+    };
+    $("doc-clear").onclick = () => {
+      DOC_TEXT = "";
+      $("doc-toggle-wrap").style.display = "none";
+      $("doc-file").value = "";
+      $("doc-status").textContent = "Document cleared.";
+    };
+
     // --- voice editor ---
     let PRESETS = {};
     async function loadConfig() {
@@ -100,35 +129,6 @@
       status("Preview ready (not sent).");
     };
     loadConfig();
-
-    // --- document upload ---
-    let DOC_TEXT = "";
-    function docIncluded() { return DOC_TEXT && $("doc-include").checked; }
-    $("doc-load").onclick = async () => {
-      const f = $("doc-file").files[0];
-      if (!f) { $("doc-status").textContent = "Choose a file first."; return; }
-      $("doc-status").textContent = "Loading " + f.name + "...";
-      const fd = new FormData(); fd.append("file", f);
-      const r = await fetch("/upload", { method: "POST", body: fd });
-      if (!r.ok) {
-        DOC_TEXT = "";
-        $("doc-toggle-wrap").style.display = "none";
-        $("doc-status").textContent = "Rejected: " + ((await r.json()).detail || "upload failed");
-        return;
-      }
-      const data = await r.json();
-      DOC_TEXT = data.text;
-      $("doc-name").textContent = "Document: " + data.filename + " (" + data.chars + " chars)";
-      $("doc-include").checked = true;
-      $("doc-toggle-wrap").style.display = "inline";
-      $("doc-status").textContent = "Loaded.";
-    };
-    $("doc-clear").onclick = () => {
-      DOC_TEXT = "";
-      $("doc-toggle-wrap").style.display = "none";
-      $("doc-file").value = "";
-      $("doc-status").textContent = "Document cleared.";
-    };
 
     $("generate").onclick = async () => {
       const sources = selectedSources();
