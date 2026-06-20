@@ -67,10 +67,16 @@ the console click **Load document** — it appears as a toggle alongside Weather
 combines into one announcement. The CLI accepts `--document path/to/file`. Scanned PDFs
 and over-long documents are rejected with a clear message.
 
+Connect a **calendar**: paste a subscribe-able iCal/`.ics` feed URL into the Calendar feed
+field and Save, then tick **Calendar** — it reads **today's** events (recurring ones included)
+and combines into one announcement like any other source. (Event-driven triggers and OAuth
+calendars come later.)
+
 ## Status
 
 Phase 0 and Phase 1 complete. Phase 3a complete: layered prompt with `<say>` extraction
 so Gemma returns clean announcements (not just the fallback), plus an admin voice/personality
 layer (presets, validation, live preview) across the engine, CLI, and console. Phase 3b
 complete: document input pipeline (.txt/.docx/.pdf → whole-doc injection) as a toggleable
-input that combines with the sources.
+input that combines with the sources. Phase 3c complete: calendar content source (iCal feed
+→ today's events with recurrence) as another combinable toggle.
