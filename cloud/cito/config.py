@@ -28,15 +28,17 @@ def validate_voice(text: str) -> str:
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
-    if not Path(path).exists():
-        return {"voice": "", "preset": DEFAULT_PRESET}
-    return json.loads(Path(path).read_text())
+    base = {"voice": "", "preset": DEFAULT_PRESET, "calendar_url": ""}
+    if Path(path).exists():
+        base.update(json.loads(Path(path).read_text()))
+    return base
 
 
-def save_config(cfg: dict, path: Path = CONFIG_PATH) -> dict:
-    clean_cfg = {
-        "voice": validate_voice(cfg.get("voice", "")),
-        "preset": cfg.get("preset", DEFAULT_PRESET),
-    }
-    Path(path).write_text(json.dumps(clean_cfg, indent=2))
-    return clean_cfg
+def save_config(updates: dict, path: Path = CONFIG_PATH) -> dict:
+    """Merge `updates` over the existing config so settings don't clobber each other."""
+    cfg = load_config(path)
+    cfg.update(updates)
+    cfg["voice"] = validate_voice(cfg.get("voice", ""))
+    cfg["calendar_url"] = (cfg.get("calendar_url") or "").strip()
+    Path(path).write_text(json.dumps(cfg, indent=2))
+    return cfg
