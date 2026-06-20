@@ -13,6 +13,8 @@ dependencies = [
     "python-docx",
     "pypdf",
     "python-multipart",
+    "icalendar",
+    "recurring-ical-events",
 ]
 
 [dependency-groups]
