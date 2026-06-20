@@ -26,6 +26,9 @@ build/
 *.ulaw
 *.raw
 
+# Runtime app config (voice/personality)
+cito_config.json
+
 # OS / editor
 .DS_Store
 .idea/
