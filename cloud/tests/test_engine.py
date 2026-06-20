@@ -54,24 +54,60 @@ def test_generate_script_uses_fallback_without_key(monkeypatch):
     assert "75 and sunny" in out
 
 
-def test_generate_script_calls_gemma_and_cleans(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+def test_generate_script_extracts_say_from_dump(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    dump = (
+        "*   Topic: Weather.\n*   Draft: something.\n"
+        "<say>Good morning team, it's sunny today.</say>"
+    )
 
-    class FakeResp:
-        status_code = 200
+    def fake_post(*args, **kwargs):
+        class R:
+            status_code = 200
+            def raise_for_status(self): pass
+            def json(self):
+                return {"candidates": [{"content": {"parts": [{"text": dump}]}}]}
+        return R()
 
-        def raise_for_status(self):
-            pass
+    monkeypatch.setattr("cito.engine.httpx.post", fake_post)
+    from cito.engine import generate_script
+    assert generate_script(["In Franklin, it's sunny."]) == "Good morning team, it's sunny today."
 
-        def json(self):
-            return {"candidates": [{"content": {"parts": [
-                {"text": '"Good morning team, 75 and sunny today!"'}
-            ]}}]}
 
-    with patch("cito.engine.httpx.post", return_value=FakeResp()) as mock_post:
-        out = generate_script(["It is 75 and sunny."])
-    assert out == "Good morning team, 75 and sunny today!"
-    assert mock_post.called
+def test_generate_script_falls_back_when_no_say_tag(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+
+    def fake_post(*args, **kwargs):
+        class R:
+            status_code = 200
+            def raise_for_status(self): pass
+            def json(self):
+                return {"candidates": [{"content": {"parts": [{"text": "rambling, no tag here"}]}}]}
+        return R()
+
+    monkeypatch.setattr("cito.engine.httpx.post", fake_post)
+    from cito.engine import generate_script
+    out = generate_script(["In Franklin, it's sunny."])
+    assert out.startswith("Good morning everyone.")  # template fallback
+
+
+def test_generate_script_passes_voice_into_prompt(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["prompt"] = json["contents"][0]["parts"][0]["text"]
+        class R:
+            status_code = 200
+            def raise_for_status(self): pass
+            def json(self):
+                return {"candidates": [{"content": {"parts": [{"text": "<say>ok</say>"}]}}]}
+        return R()
+
+    monkeypatch.setattr("cito.engine.httpx.post", fake_post)
+    from cito.engine import generate_script
+    generate_script(["data"], voice="Be extremely upbeat.")
+    assert "Be extremely upbeat." in captured["prompt"]
 
 
 def test_generate_script_falls_back_on_gemma_error(monkeypatch):

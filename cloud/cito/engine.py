@@ -10,6 +10,7 @@ import re
 import httpx
 
 from cito.constants import GEMINI_ENDPOINT, GEMMA_MODEL
+from cito.prompts import assemble_prompt
 
 MAX_CHARS = 600  # a spoken announcement is short; longer => model misbehaved
 RAW_MAX_CHARS = 800  # raw model output longer than this is a reasoning dump, not an announcement
@@ -120,17 +121,6 @@ def extract_say(raw: str) -> str | None:
     return matches[-1].strip()
 
 
-ENVELOPE = (
-    "You write one short spoken office announcement to be read aloud by a "
-    "text-to-speech voice. Output rules: respond with the announcement sentence(s) "
-    "ONLY — nothing before or after. Do NOT show your reasoning, goals, constraints, "
-    "drafts, or multiple options. Do NOT use markdown, asterisks, bullet points, "
-    "quotation marks, or headings. One to three friendly sentences. Use "
-    "speech-friendly numbers (say 'twenty percent', not '20%') and spell out symbols.\n\n"
-    "Information to announce:\n"
-)
-
-
 def template_fallback(prompt_fragments: list[str]) -> str:
     """Deterministic, no-AI announcement built straight from the source fragments."""
     body = " ".join(f.strip() for f in prompt_fragments if f.strip())
@@ -150,15 +140,21 @@ def _call_gemma(prompt: str, api_key: str) -> str:
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def generate_script(prompt_fragments: list[str]) -> str:
-    """Assemble the layered prompt, call Gemma, and clean — falling back on any failure."""
+def generate_script(prompt_fragments: list[str], voice: str = "") -> str:
+    """Assemble the layered prompt, call Gemma, extract the <say> answer, and clean.
+
+    Falls back to the deterministic template on no key, no <say> tag, or any failure.
+    """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return template_fallback(prompt_fragments)
 
-    prompt = ENVELOPE + "\n".join(prompt_fragments)
+    prompt = assemble_prompt(prompt_fragments, voice)
     try:
         raw = _call_gemma(prompt, api_key)
-        return clean(raw)
+        said = extract_say(raw)
+        if said is None:
+            return template_fallback(prompt_fragments)
+        return clean(said)
     except (httpx.HTTPError, CleanedEmptyError, KeyError, RuntimeError):
         return template_fallback(prompt_fragments)
