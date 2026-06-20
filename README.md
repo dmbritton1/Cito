@@ -62,8 +62,15 @@ The console now includes a **Voice / personality** editor (presets + live Previe
 Set a voice and Save it; Generate/Send use the saved voice, Preview uses the current
 (unsaved) text. The CLI accepts `--voice "…"` to override per run.
 
+Drop in a **document** (.txt / .docx / digital .pdf) to base an announcement on it: in
+the console click **Load document** — it appears as a toggle alongside Weather/Stocks and
+combines into one announcement. The CLI accepts `--document path/to/file`. Scanned PDFs
+and over-long documents are rejected with a clear message.
+
 ## Status
 
 Phase 0 and Phase 1 complete. Phase 3a complete: layered prompt with `<say>` extraction
 so Gemma returns clean announcements (not just the fallback), plus an admin voice/personality
-layer (presets, validation, live preview) across the engine, CLI, and console.
+layer (presets, validation, live preview) across the engine, CLI, and console. Phase 3b
+complete: document input pipeline (.txt/.docx/.pdf → whole-doc injection) as a toggleable
+input that combines with the sources.
