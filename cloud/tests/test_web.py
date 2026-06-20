@@ -31,3 +31,35 @@ def test_send_endpoint():
 def test_send_rejects_empty():
     resp = client.post("/send", json={"text": "   "})
     assert resp.status_code == 400
+
+
+def test_get_config_returns_voice_and_presets(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    monkeypatch.setattr("cito.web.app.config.load_config", lambda: {"voice": "Hi.", "preset": "Friendly"})
+    client = TestClient(webapp.app)
+    body = client.get("/config").json()
+    assert body["voice"] == "Hi."
+    assert "Professional" in body["presets"]
+
+
+def test_post_voice_saves_validated(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    saved = {}
+    monkeypatch.setattr("cito.web.app.config.save_config",
+                        lambda cfg: saved.update(cfg) or {"voice": cfg["voice"], "preset": cfg["preset"]})
+    client = TestClient(webapp.app)
+    r = client.post("/voice", json={"voice": "Be upbeat.", "preset": "Friendly"})
+    assert r.status_code == 200
+    assert saved["voice"] == "Be upbeat."
+
+
+def test_post_preview_returns_sample(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    monkeypatch.setattr("cito.web.app.pipeline.generate_announcement",
+                        lambda sources, voice=None: f"PREVIEW[{voice}]")
+    client = TestClient(webapp.app)
+    r = client.post("/preview", json={"sources": ["weather"], "voice": "Zany."})
+    assert r.json()["text"] == "PREVIEW[Zany.]"
