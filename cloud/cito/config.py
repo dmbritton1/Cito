@@ -16,7 +16,7 @@ PRESETS = {
 
 _INJECTION_RE = re.compile(
     r"(ignore (all )?previous instructions|disregard the above|"
-    r"return only|system prompt|</?say>)",
+    r"return only [^.\n]*(json|xml|html|markdown|code)|system prompt|</?say>)",
     re.IGNORECASE,
 )
 
