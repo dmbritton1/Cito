@@ -26,15 +26,27 @@ def main() -> None:
                      help="print the script instead of sending")
     ann.add_argument("--voice", default=None,
                      help="override the saved voice/personality for this run")
+    ann.add_argument("--document", help="path to a .txt/.docx/.pdf to base the announcement on")
 
     args = parser.parse_args()
 
     if args.message and args.message.strip():
         text = args.message
     else:
-        if not args.sources:
-            parser.error("provide --message or at least one --source")
-        text = pipeline.generate_announcement(args.sources, voice=args.voice)
+        document_text = ""
+        if args.document:
+            from cito import documents
+            try:
+                with open(args.document, "rb") as f:
+                    document_text = documents.extract_text(args.document, f.read())
+            except documents.DocumentError as exc:
+                parser.error(str(exc))
+            except OSError as exc:
+                parser.error(f"could not read {args.document}: {exc}")
+        if not args.sources and not document_text:
+            parser.error("provide --message, --document, or at least one --source")
+        text = pipeline.generate_announcement(
+            args.sources, voice=args.voice, document_text=document_text)
 
     print(f"Script: {text}")
     if args.print_only:
