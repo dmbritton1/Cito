@@ -42,11 +42,18 @@ class MulticastRTPSender:
         )
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
         count = 0
+        # Drift-corrected pacing: each packet has an absolute deadline (start + n*20ms),
+        # so we sleep only the time still remaining. A plain sleep(0.02) overshoots and
+        # the error accumulates, delivering the stream slower than real-time and starving
+        # the receiver's jitter buffer (audible cuts).
+        start = time.perf_counter()
         try:
-            for packet in iter_rtp_packets(mulaw, ssrc=random.getrandbits(32)):
+            for i, packet in enumerate(iter_rtp_packets(mulaw, ssrc=random.getrandbits(32))):
                 sock.sendto(packet, (self.addr, self.port))
                 count += 1
-                time.sleep(PACKET_INTERVAL_S)
+                remaining = start + (i + 1) * PACKET_INTERVAL_S - time.perf_counter()
+                if remaining > 0:
+                    time.sleep(remaining)
         finally:
             sock.close()
         return count
