@@ -20,6 +20,14 @@
     <legend>Data pipelines</legend>
     <label><input type="checkbox" id="src-weather" value="weather" /> Weather</label>
     <label><input type="checkbox" id="src-stocks" value="stocks" /> Stocks</label>
+    <label><input type="checkbox" id="src-calendar" value="calendar" /> Calendar</label>
+  </fieldset>
+  <fieldset>
+    <legend>Calendar feed</legend>
+    <input type="text" id="cal-url" placeholder="https://…/basic.ics"
+           style="width:70%; padding:.4rem;" />
+    <button id="cal-save">Save URL</button>
+    <div id="cal-status" style="margin-top:.4rem; color:#555;"></div>
   </fieldset>
   <fieldset>
     <legend>Document</legend>
@@ -56,7 +64,7 @@
     const status = (msg) => { $("status").textContent = msg; };
 
     function selectedSources() {
-      return ["weather", "stocks"].filter((s) => $("src-" + s).checked);
+      return ["weather", "stocks", "calendar"].filter((s) => $("src-" + s).checked);
     }
 
     // --- document upload ---
@@ -101,6 +109,7 @@
       }
       if (cfg.preset) sel.value = cfg.preset;
       $("voice").value = cfg.voice || "";
+      $("cal-url").value = cfg.calendar_url || "";
     }
     $("preset") && ($("preset").onchange = () => { $("voice").value = PRESETS[$("preset").value] || ""; });
     $("save-voice").onclick = async () => {
@@ -129,6 +138,17 @@
       status("Preview ready (not sent).");
     };
     loadConfig();
+    $("cal-save").onclick = async () => {
+      $("cal-status").textContent = "Saving calendar URL...";
+      const r = await fetch("/calendar", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ url: $("cal-url").value }),
+      });
+      if (!r.ok) { $("cal-status").textContent = "Rejected: " + ((await r.json()).detail || "bad URL"); return; }
+      const data = await r.json();
+      $("cal-url").value = data.calendar_url;
+      $("cal-status").textContent = "Calendar URL saved.";
+    };
 
     $("generate").onclick = async () => {
       const sources = selectedSources();
