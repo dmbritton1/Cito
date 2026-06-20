@@ -22,6 +22,16 @@
     <label><input type="checkbox" id="src-stocks" value="stocks" /> Stocks</label>
   </fieldset>
   <fieldset>
+    <legend>Document</legend>
+    <input type="file" id="doc-file" accept=".txt,.docx,.pdf" />
+    <button id="doc-load">Load document</button>
+    <span id="doc-toggle-wrap" style="display:none;">
+      <label><input type="checkbox" id="doc-include" checked /> <span id="doc-name"></span></label>
+      <button id="doc-clear">Clear</button>
+    </span>
+    <div id="doc-status" style="margin-top:.4rem; color:#555;"></div>
+  </fieldset>
+  <fieldset>
     <legend>Voice / personality</legend>
     <label for="preset">Preset:</label>
     <select id="preset"></select>
@@ -76,11 +86,14 @@
     };
     $("preview").onclick = async () => {
       const sources = selectedSources();
-      if (sources.length === 0) { status("Tick at least one source to preview."); return; }
+      const document_text = docIncluded() ? DOC_TEXT : "";
+      if (sources.length === 0 && !document_text) {
+        status("Tick a source or load a document to preview."); return;
+      }
       status("Previewing...");
       const r = await fetch("/preview", {
         method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ sources, voice: $("voice").value }),
+        body: JSON.stringify({ sources, voice: $("voice").value, document_text }),
       });
       const data = await r.json();
       $("preview-out").textContent = "Preview: " + data.text;
@@ -88,14 +101,46 @@
     };
     loadConfig();
 
+    // --- document upload ---
+    let DOC_TEXT = "";
+    function docIncluded() { return DOC_TEXT && $("doc-include").checked; }
+    $("doc-load").onclick = async () => {
+      const f = $("doc-file").files[0];
+      if (!f) { $("doc-status").textContent = "Choose a file first."; return; }
+      $("doc-status").textContent = "Loading " + f.name + "...";
+      const fd = new FormData(); fd.append("file", f);
+      const r = await fetch("/upload", { method: "POST", body: fd });
+      if (!r.ok) {
+        DOC_TEXT = "";
+        $("doc-toggle-wrap").style.display = "none";
+        $("doc-status").textContent = "Rejected: " + ((await r.json()).detail || "upload failed");
+        return;
+      }
+      const data = await r.json();
+      DOC_TEXT = data.text;
+      $("doc-name").textContent = "Document: " + data.filename + " (" + data.chars + " chars)";
+      $("doc-include").checked = true;
+      $("doc-toggle-wrap").style.display = "inline";
+      $("doc-status").textContent = "Loaded.";
+    };
+    $("doc-clear").onclick = () => {
+      DOC_TEXT = "";
+      $("doc-toggle-wrap").style.display = "none";
+      $("doc-file").value = "";
+      $("doc-status").textContent = "Document cleared.";
+    };
+
     $("generate").onclick = async () => {
       const sources = selectedSources();
-      if (sources.length === 0) { status("Tick at least one source to generate."); return; }
+      const document_text = docIncluded() ? DOC_TEXT : "";
+      if (sources.length === 0 && !document_text) {
+        status("Tick a source or load a document first."); return;
+      }
       status("Generating...");
       try {
         const r = await fetch("/generate", {
           method: "POST", headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ sources }),
+          body: JSON.stringify({ sources, document_text }),
         });
         const data = await r.json();
         $("text").value = data.text;
