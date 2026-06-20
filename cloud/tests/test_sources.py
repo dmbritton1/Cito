@@ -1,5 +1,6 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+from cito.sources.stocks import StockSource
 from cito.sources.weather import WeatherSource
 
 
@@ -37,11 +38,6 @@ def test_weather_prompt_fragment_mentions_condition_and_location():
     assert "Austin" in frag
     assert "Sunny" in frag
     assert "80" in frag
-
-
-from unittest.mock import MagicMock
-
-from cito.sources.stocks import StockSource
 
 
 def test_stocks_fetch_emits_change_and_percent():
