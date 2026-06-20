@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cito Console</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+    textarea { width: 100%; min-height: 8rem; font-size: 1rem; padding: .5rem; box-sizing: border-box; }
+    button { font-size: 1rem; padding: .5rem 1rem; margin-right: .5rem; cursor: pointer; }
+    #status { margin-top: 1rem; color: #555; min-height: 1.2rem; }
+    label { display: inline-block; margin-right: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Cito — Announcement Console</h1>
+  <fieldset>
+    <legend>Data pipelines</legend>
+    <label><input type="checkbox" id="src-weather" value="weather" /> Weather</label>
+    <label><input type="checkbox" id="src-stocks" value="stocks" /> Stocks</label>
+  </fieldset>
+  <p>Tick sources and <b>Generate</b>, or just type a custom message below, then <b>Send</b>.</p>
+  <textarea id="text" placeholder="Announcement text..."></textarea>
+  <div style="margin-top:.5rem;">
+    <button id="generate">Generate</button>
+    <button id="send">Send</button>
+  </div>
+  <div id="status"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const status = (msg) => { $("status").textContent = msg; };
+
+    function selectedSources() {
+      return ["weather", "stocks"].filter((s) => $("src-" + s).checked);
+    }
+
+    $("generate").onclick = async () => {
+      const sources = selectedSources();
+      if (sources.length === 0) { status("Tick at least one source to generate."); return; }
+      status("Generating...");
+      try {
+        const r = await fetch("/generate", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ sources }),
+        });
+        const data = await r.json();
+        $("text").value = data.text;
+        status("Generated. Edit if you like, then Send.");
+      } catch (e) { status("Generate failed: " + e); }
+    };
+
+    $("send").onclick = async () => {
+      const text = $("text").value.trim();
+      if (!text) { status("Nothing to send — type or generate a message first."); return; }
+      status("Sending...");
+      try {
+        const r = await fetch("/send", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) { status("Send rejected: " + (await r.text())); return; }
+        const data = await r.json();
+        status("Sent " + data.packets + " packets to the multicast stream.");
+      } catch (e) { status("Send failed: " + e); }
+    };
+  </script>
+</body>
+</html>
