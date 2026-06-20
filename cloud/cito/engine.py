@@ -30,6 +30,8 @@ _SIGN_OFF_PHRASES = ("let me know", "which you prefer", "hope this helps", "feel
 
 _INLINE_MD_RE = re.compile(r"[*_]|^[#>]+\s*", re.MULTILINE)
 
+_SAY_RE = re.compile(r"<say>(.*?)</say>", re.DOTALL | re.IGNORECASE)
+
 
 class CleanedEmptyError(ValueError):
     """Raised when cleaning leaves nothing announceable (caller should fall back)."""
@@ -103,6 +105,19 @@ def clean(raw: str) -> str:
     if len(text) > MAX_CHARS:
         raise CleanedEmptyError(f"cleaned output too long ({len(text)} chars)")
     return text
+
+
+def extract_say(raw: str) -> str | None:
+    """Return the content of the LAST <say>…</say> block, or None if absent.
+
+    The model emits its reasoning plus a final answer wrapped in <say> tags
+    (and may echo the few-shot example tags first), so the last block is the
+    real answer.
+    """
+    matches = _SAY_RE.findall(raw)
+    if not matches:
+        return None
+    return matches[-1].strip()
 
 
 ENVELOPE = (

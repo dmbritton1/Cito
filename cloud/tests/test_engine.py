@@ -110,3 +110,24 @@ def test_chatty_options_with_no_clean_answer_raises():
     )
     with pytest.raises(CleanedEmptyError):
         clean(raw)
+
+
+def test_extract_say_returns_single_tag():
+    from cito.engine import extract_say
+    assert extract_say("blah <say>Hello team.</say> blah") == "Hello team."
+
+
+def test_extract_say_returns_last_of_multiple():
+    from cito.engine import extract_say
+    raw = "<say>example one</say> reasoning <say>the real answer</say>"
+    assert extract_say(raw) == "the real answer"
+
+
+def test_extract_say_spans_newlines():
+    from cito.engine import extract_say
+    assert extract_say("x\n<say>line one\nstill answer</say>\ny") == "line one\nstill answer"
+
+
+def test_extract_say_returns_none_when_absent():
+    from cito.engine import extract_say
+    assert extract_say("just a reasoning dump, no tag") is None
