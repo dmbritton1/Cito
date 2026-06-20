@@ -58,8 +58,12 @@ Listen in VLC: Open Network → Open RTP/UDP Stream → Protocol **RTP**, Mode
 **Multicast**, address `224.0.1.75`, port `10000`. Start VLC listening *before*
 clicking Send (RTP multicast is fire-and-forget).
 
+The console now includes a **Voice / personality** editor (presets + live Preview).
+Set a voice and Save it; Generate/Send use the saved voice, Preview uses the current
+(unsaved) text. The CLI accepts `--voice "…"` to override per run.
+
 ## Status
 
-Phase 0 complete (RTP spike validated in VLC, Gemma round-trip). Phase 1 in progress:
-content engine (Gemma + defensive `clean()` + template fallback), weather + stocks
-sources, gTTS → µ-law → multicast RTP pipeline, and a CLI + one-page dev console.
+Phase 0 and Phase 1 complete. Phase 3a complete: layered prompt with `<say>` extraction
+so Gemma returns clean announcements (not just the fallback), plus an admin voice/personality
+layer (presets, validation, live preview) across the engine, CLI, and console.
