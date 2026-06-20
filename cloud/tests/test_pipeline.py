@@ -101,3 +101,33 @@ class _FailingSource:
 
     def prompt_fragment(self, data):
         return "unused"
+
+
+def test_generate_announcement_appends_document_fragment(monkeypatch):
+    captured = {}
+
+    def fake_generate_script(fragments, voice=""):
+        captured["fragments"] = fragments
+        return "ok"
+
+    monkeypatch.setattr("cito.pipeline.SOURCES", {})
+    monkeypatch.setattr("cito.pipeline.generate_script", fake_generate_script)
+    monkeypatch.setattr("cito.pipeline.config.load_config", lambda: {"voice": "", "preset": "Friendly"})
+    from cito import pipeline
+    pipeline.generate_announcement([], document_text="Quarterly memo body.")
+    assert any("Quarterly memo body." in f for f in captured["fragments"])
+
+
+def test_generate_announcement_ignores_blank_document(monkeypatch):
+    captured = {}
+
+    def fake_generate_script(fragments, voice=""):
+        captured["fragments"] = fragments
+        return "ok"
+
+    monkeypatch.setattr("cito.pipeline.SOURCES", {})
+    monkeypatch.setattr("cito.pipeline.generate_script", fake_generate_script)
+    monkeypatch.setattr("cito.pipeline.config.load_config", lambda: {"voice": "", "preset": "Friendly"})
+    from cito import pipeline
+    pipeline.generate_announcement([], document_text="   ")
+    assert captured["fragments"] == []

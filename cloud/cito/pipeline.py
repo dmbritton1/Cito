@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from cito import audio, config, tts
+from cito import audio, config, documents, tts
 from cito.delivery import MulticastRTPSender
 from cito.engine import generate_script
 from cito.sources import SOURCES
@@ -14,10 +14,14 @@ class SendResult:
     packets: int
 
 
-def generate_announcement(source_keys: list[str], voice: str | None = None) -> str:
-    """Fetch each enabled source, combine fragments, and produce a clean script.
+def generate_announcement(
+    source_keys: list[str], voice: str | None = None, document_text: str = ""
+) -> str:
+    """Combine toggled sources (and an optional document) into a clean script.
 
     `voice` overrides the saved personality; when None, the saved voice is loaded.
+    `document_text` is already-extracted text — when present it is added as one
+    more context fragment.
     """
     if voice is None:
         voice = config.load_config().get("voice", "")
@@ -31,6 +35,8 @@ def generate_announcement(source_keys: list[str], voice: str | None = None) -> s
             fragments.append(source.prompt_fragment(data))
         except Exception:  # a flaky source must not sink the whole announcement
             continue
+    if document_text.strip():
+        fragments.append(documents.document_fragment(document_text))
     return generate_script(fragments, voice=voice)
 
 
