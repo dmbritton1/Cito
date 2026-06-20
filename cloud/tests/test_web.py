@@ -59,7 +59,38 @@ def test_post_preview_returns_sample(monkeypatch):
     from fastapi.testclient import TestClient
     from cito.web import app as webapp
     monkeypatch.setattr("cito.web.app.pipeline.generate_announcement",
-                        lambda sources, voice=None: f"PREVIEW[{voice}]")
+                        lambda sources, voice=None, document_text="": f"PREVIEW[{voice}]")
     client = TestClient(webapp.app)
     r = client.post("/preview", json={"sources": ["weather"], "voice": "Zany."})
     assert r.json()["text"] == "PREVIEW[Zany.]"
+
+
+def test_upload_txt_returns_text():
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    client = TestClient(webapp.app)
+    r = client.post("/upload", files={"file": ("memo.txt", b"Picnic on Friday.", "text/plain")})
+    assert r.status_code == 200
+    body = r.json()
+    assert "Picnic on Friday." in body["text"]
+    assert body["chars"] == len(body["text"])
+
+
+def test_upload_bad_extension_400():
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    client = TestClient(webapp.app)
+    r = client.post("/upload", files={"file": ("x.exe", b"data", "application/octet-stream")})
+    assert r.status_code == 400
+
+
+def test_generate_threads_document_text(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    monkeypatch.setattr(
+        "cito.web.app.pipeline.generate_announcement",
+        lambda sources, voice=None, document_text="": f"DOC[{document_text}]",
+    )
+    client = TestClient(webapp.app)
+    r = client.post("/generate", json={"sources": [], "document_text": "hello"})
+    assert r.json()["text"] == "DOC[hello]"

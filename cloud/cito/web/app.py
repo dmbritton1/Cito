@@ -3,11 +3,11 @@
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from cito import config, pipeline
+from cito import config, documents, pipeline
 
 load_dotenv()
 app = FastAPI(title="Cito Console")
@@ -16,6 +16,7 @@ _INDEX = Path(__file__).parent / "index.html"
 
 class GenerateRequest(BaseModel):
     sources: list[str] = []
+    document_text: str = ""
 
 
 class SendRequest(BaseModel):
@@ -30,6 +31,7 @@ class VoiceRequest(BaseModel):
 class PreviewRequest(BaseModel):
     sources: list[str] = []
     voice: str = ""
+    document_text: str = ""
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -39,7 +41,7 @@ def index() -> str:
 
 @app.post("/generate")
 def generate(req: GenerateRequest) -> dict:
-    return {"text": pipeline.generate_announcement(req.sources)}
+    return {"text": pipeline.generate_announcement(req.sources, document_text=req.document_text)}
 
 
 @app.post("/send")
@@ -66,4 +68,15 @@ def save_voice(req: VoiceRequest) -> dict:
 
 @app.post("/preview")
 def preview(req: PreviewRequest) -> dict:
-    return {"text": pipeline.generate_announcement(req.sources, voice=req.voice)}
+    return {"text": pipeline.generate_announcement(
+        req.sources, voice=req.voice, document_text=req.document_text)}
+
+
+@app.post("/upload")
+async def upload(file: UploadFile) -> dict:
+    data = await file.read()
+    try:
+        text = documents.extract_text(file.filename or "", data)
+    except documents.DocumentError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"text": text, "chars": len(text), "filename": file.filename}
