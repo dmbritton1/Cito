@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from cito import audio, tts
+from cito import audio, config, tts
 from cito.delivery import MulticastRTPSender
 from cito.engine import generate_script
 from cito.sources import SOURCES
@@ -14,8 +14,13 @@ class SendResult:
     packets: int
 
 
-def generate_announcement(source_keys: list[str]) -> str:
-    """Fetch each enabled source, combine fragments, and produce a clean script."""
+def generate_announcement(source_keys: list[str], voice: str | None = None) -> str:
+    """Fetch each enabled source, combine fragments, and produce a clean script.
+
+    `voice` overrides the saved personality; when None, the saved voice is loaded.
+    """
+    if voice is None:
+        voice = config.load_config().get("voice", "")
     fragments = []
     for key in source_keys:
         source = SOURCES.get(key)
@@ -26,7 +31,7 @@ def generate_announcement(source_keys: list[str]) -> str:
             fragments.append(source.prompt_fragment(data))
         except Exception:  # a flaky source must not sink the whole announcement
             continue
-    return generate_script(fragments)
+    return generate_script(fragments, voice=voice)
 
 
 def send_announcement(text: str) -> SendResult:
