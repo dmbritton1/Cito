@@ -1,6 +1,8 @@
+from unittest.mock import patch
+
 import pytest
 
-from cito.engine import clean, CleanedEmptyError
+from cito.engine import clean, CleanedEmptyError, generate_script, template_fallback
 
 
 def test_strips_surrounding_whitespace():
@@ -38,11 +40,6 @@ def test_empty_after_cleaning_raises():
 def test_too_long_raises():
     with pytest.raises(CleanedEmptyError):
         clean("word " * 400)
-
-
-from unittest.mock import patch
-
-from cito.engine import template_fallback, generate_script
 
 
 def test_template_fallback_joins_fragments():
