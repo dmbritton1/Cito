@@ -156,5 +156,5 @@ def generate_script(prompt_fragments: list[str], voice: str = "") -> str:
         if said is None:
             return template_fallback(prompt_fragments)
         return clean(said)
-    except (httpx.HTTPError, CleanedEmptyError, KeyError, RuntimeError):
+    except (httpx.HTTPError, CleanedEmptyError, KeyError, IndexError, RuntimeError):
         return template_fallback(prompt_fragments)
