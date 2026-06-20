@@ -37,3 +37,33 @@ def test_weather_prompt_fragment_mentions_condition_and_location():
     assert "Austin" in frag
     assert "Sunny" in frag
     assert "80" in frag
+
+
+from unittest.mock import MagicMock
+
+from cito.sources.stocks import StockSource
+
+
+def test_stocks_fetch_emits_change_and_percent():
+    fake_ticker = MagicMock()
+    fake_ticker.fast_info = {"last_price": 101.0, "previous_close": 100.0}
+    fake_ticker.info = {"shortName": "Apple Inc."}
+
+    with patch("cito.sources.stocks.yf.Ticker", return_value=fake_ticker):
+        data = StockSource(tickers=["AAPL"]).fetch()
+
+    quote = data["quotes"][0]
+    assert quote["name"] == "Apple Inc."
+    assert quote["change_pct"] == 1.0
+    assert quote["direction"] == "up"
+    assert quote["previous_close"] == 100.0
+
+
+def test_stocks_prompt_fragment_uses_names_not_tickers():
+    data = {"quotes": [
+        {"name": "Apple Inc.", "change_pct": 1.2, "direction": "up", "previous_close": 100.0}
+    ]}
+    frag = StockSource().prompt_fragment(data)
+    assert "Apple" in frag
+    assert "1.2" in frag
+    assert "AAPL" not in frag
