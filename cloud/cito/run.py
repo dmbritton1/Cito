@@ -24,6 +24,8 @@ def main() -> None:
     ann.add_argument("--message", help="send this exact text, skipping generation")
     ann.add_argument("--print", action="store_true", dest="print_only",
                      help="print the script instead of sending")
+    ann.add_argument("--voice", default=None,
+                     help="override the saved voice/personality for this run")
 
     args = parser.parse_args()
 
@@ -32,7 +34,7 @@ def main() -> None:
     else:
         if not args.sources:
             parser.error("provide --message or at least one --source")
-        text = pipeline.generate_announcement(args.sources)
+        text = pipeline.generate_announcement(args.sources, voice=args.voice)
 
     print(f"Script: {text}")
     if args.print_only:
