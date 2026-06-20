@@ -23,8 +23,9 @@ class WeatherSource:
         }
 
     def prompt_fragment(self, data: dict) -> str:
+        # A speech-ready data statement (no LLM instructions here — the engine's
+        # envelope owns the "how"). This doubles as clean text for the template fallback.
         return (
-            f"Weather for {data['location']}: {data['condition']}, "
-            f"high {data['high_f']} degrees, low {data['low_f']} degrees. "
-            "Give a brief, friendly forecast line."
+            f"In {data['location']}, it's {data['condition']} "
+            f"with a high of {data['high_f']} degrees and a low of {data['low_f']} degrees."
         )

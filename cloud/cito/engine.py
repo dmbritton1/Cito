@@ -12,6 +12,7 @@ import httpx
 from cito.constants import GEMINI_ENDPOINT, GEMMA_MODEL
 
 MAX_CHARS = 600  # a spoken announcement is short; longer => model misbehaved
+RAW_MAX_CHARS = 800  # raw model output longer than this is a reasoning dump, not an announcement
 
 _PREAMBLE_RE = re.compile(
     r"^\s*(?:sure|okay|certainly)?[!,.\s]*"
@@ -35,6 +36,11 @@ class CleanedEmptyError(ValueError):
 
 
 def clean(raw: str) -> str:
+    # Step 0: reject a reasoning dump outright. A clean 1-3 sentence announcement is
+    # short; output this long is the model thinking out loud, not an announcement.
+    if len(raw.strip()) > RAW_MAX_CHARS:
+        raise CleanedEmptyError(f"raw output too long, likely a reasoning dump ({len(raw)} chars)")
+
     # Step 1: strip surrounding whitespace.
     text = raw.strip()
 
@@ -100,11 +106,13 @@ def clean(raw: str) -> str:
 
 
 ENVELOPE = (
-    "You write a single short spoken office announcement to be read aloud by a "
-    "text-to-speech voice. Return ONLY the announcement text: no preamble, no "
-    "markdown, no quotes, no lists, no options, no commentary. Keep it to one to "
-    "three friendly sentences. Use speech-friendly numbers and spell out symbols.\n\n"
-    "Here is the information to announce:\n"
+    "You write one short spoken office announcement to be read aloud by a "
+    "text-to-speech voice. Output rules: respond with the announcement sentence(s) "
+    "ONLY — nothing before or after. Do NOT show your reasoning, goals, constraints, "
+    "drafts, or multiple options. Do NOT use markdown, asterisks, bullet points, "
+    "quotation marks, or headings. One to three friendly sentences. Use "
+    "speech-friendly numbers (say 'twenty percent', not '20%') and spell out symbols.\n\n"
+    "Information to announce:\n"
 )
 
 
@@ -120,7 +128,7 @@ def _call_gemma(prompt: str, api_key: str) -> str:
         url,
         headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
         json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=30.0,
+        timeout=60.0,
     )
     resp.raise_for_status()
     data = resp.json()

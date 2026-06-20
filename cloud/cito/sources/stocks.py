@@ -33,12 +33,11 @@ class StockSource:
         return {"quotes": quotes}
 
     def prompt_fragment(self, data: dict) -> str:
+        # Speech-ready data: company names (not tickers) + day change, already rounded.
+        # No LLM instructions here — the engine's envelope owns the "how"; this also
+        # doubles as clean text for the template fallback.
         lines = [
             f"{q['name']} {q['direction']} about {q['change_pct']} percent"
             for q in data["quotes"]
         ]
-        return (
-            "End-of-day stock summary (say company names, not tickers; round to "
-            "speech-friendly precision; vary verbs like gained/slipped/jumped/fell; "
-            "group winners and losers): " + "; ".join(lines) + "."
-        )
+        return "At today's market close: " + "; ".join(lines) + "."
