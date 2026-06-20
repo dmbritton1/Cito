@@ -2,12 +2,14 @@
 
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from cito import pipeline
 
+load_dotenv()
 app = FastAPI(title="Cito Console")
 _INDEX = Path(__file__).parent / "index.html"
 

@@ -83,3 +83,30 @@ def test_generate_script_falls_back_on_gemma_error(monkeypatch):
     with patch("cito.engine.httpx.post", side_effect=boom):
         out = generate_script(["It is 75 and sunny."])
     assert "75 and sunny" in out  # fell back to template
+
+
+def test_cleans_real_gemma_multi_option_dump():
+    raw = (
+        "*   Topic: Good-morning office announcement.\n"
+        "*   Tone: Friendly.\n"
+        "\n"
+        "*   \"Good morning everyone, let's have a great day!\" (generic)\n"
+        "*   \"Rise and shine, team!\" (energetic)\n"
+        "\n"
+        "*Self-Correction:* The prompt asks for one sentence.\n"
+        "\n"
+        "\"Good morning team, let's make today a great one!\"\n"
+        "\"Good morning team, let's make today a great one!\"\n"
+    )
+    assert clean(raw) == "Good morning team, let's make today a great one!"
+
+
+def test_chatty_options_with_no_clean_answer_raises():
+    raw = (
+        "Sure! Here are a few options:\n\n"
+        "*   \"Option one.\"\n"
+        "*   \"Option two.\"\n\n"
+        "Let me know which you prefer!"
+    )
+    with pytest.raises(CleanedEmptyError):
+        clean(raw)

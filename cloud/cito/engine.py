@@ -14,9 +14,20 @@ from cito.constants import GEMINI_ENDPOINT, GEMMA_MODEL
 MAX_CHARS = 600  # a spoken announcement is short; longer => model misbehaved
 
 _PREAMBLE_RE = re.compile(
-    r"^\s*(sure[!,. ]*)?(here(?:'s| is)[^:]*:)\s*",
+    r"^\s*(?:sure|okay|certainly)?[!,.\s]*"
+    r"here(?:'s| is| are)\b[^:\n]{0,40}"
+    r"(?:announcement|forecast|update|summary|message|options?|following)[^:\n]*:\s*",
     re.IGNORECASE,
 )
+
+_META_LABEL_RE = re.compile(
+    r"^\s*\*?\s*(Topic|Tone|Length|Self[- ]?Correction|Note|Draft|Final Answer|Option\s+[A-Za-z0-9]+)\b[^:]*:",
+    re.IGNORECASE,
+)
+
+_SIGN_OFF_PHRASES = ("let me know", "which you prefer", "hope this helps", "feel free")
+
+_INLINE_MD_RE = re.compile(r"[*_]|^[#>]+\s*", re.MULTILINE)
 
 
 class CleanedEmptyError(ValueError):
@@ -24,31 +35,63 @@ class CleanedEmptyError(ValueError):
 
 
 def clean(raw: str) -> str:
+    # Step 1: strip surrounding whitespace.
     text = raw.strip()
 
-    # Remove wrapping code fences / backticks.
+    # Step 2: strip wrapping code fences / backticks.
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```$", "", text).strip()
     text = text.strip("`").strip()
 
-    # Remove a single layer of wrapping quotes.
+    # Step 3: strip a leading assistant preamble when it contains an assistant-y noun.
+    text = _PREAMBLE_RE.sub("", text).strip()
+
+    # Step 4: process lines — drop blank, bullet/list, meta-label, and sign-off lines.
+    kept = []
+    for line in text.splitlines():
+        # Drop blank/whitespace-only.
+        if not line.strip():
+            continue
+        # Drop bullet / numbered list lines.
+        if re.match(r"^\s*([*\-+]|\d+\.)\s+", line):
+            continue
+        # Drop meta-label lines (e.g. "* Topic:", "Tone:", "Self-Correction:").
+        if _META_LABEL_RE.match(line):
+            continue
+        # Drop assistant sign-off lines.
+        lower = line.lower()
+        if any(phrase in lower for phrase in _SIGN_OFF_PHRASES):
+            continue
+        kept.append(line)
+
+    # Step 5: strip inline markdown emphasis and leading # / > from surviving lines,
+    # then strip a single layer of wrapping quotes on each line.
+    cleaned_lines = []
+    for line in kept:
+        line = re.sub(r"[*_]", "", line)
+        line = re.sub(r"^[#>]+\s*", "", line).strip()
+        # Strip a single layer of wrapping quotes on this line.
+        if len(line) >= 2 and line[0] in "\"'" and line[-1] == line[0]:
+            line = line[1:-1].strip()
+        if line:
+            cleaned_lines.append(line)
+
+    # Step 6: deduplicate identical consecutive lines.
+    deduped = []
+    for line in cleaned_lines:
+        if not deduped or line != deduped[-1]:
+            deduped.append(line)
+
+    # Step 7: join with a single space, then collapse internal whitespace.
+    text = " ".join(deduped)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    # Step 8: strip a single layer of wrapping quotes on the whole result.
     if len(text) >= 2 and text[0] in "\"'" and text[-1] == text[0]:
         text = text[1:-1].strip()
 
-    # Strip a leading "Here's your announcement:" style preamble.
-    text = _PREAMBLE_RE.sub("", text).strip()
-
-    # Drop markdown bullet / list lines (*, -, +, or "1.") — keep prose lines.
-    kept = [
-        ln for ln in text.splitlines()
-        if not re.match(r"^\s*([*\-+]|\d+\.)\s+", ln)
-    ]
-    text = "\n".join(kept).strip()
-
-    # Collapse internal whitespace runs to single spaces.
-    text = re.sub(r"\s+", " ", text).strip()
-
+    # Step 9: validate.
     if not text:
         raise CleanedEmptyError("nothing announceable after cleaning")
     if len(text) > MAX_CHARS:

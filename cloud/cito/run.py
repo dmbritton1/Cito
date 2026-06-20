@@ -8,10 +8,13 @@ Examples:
 
 import argparse
 
+from dotenv import load_dotenv
+
 from cito import pipeline
 
 
 def main() -> None:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Fire a Cito announcement.")
     sub = parser.add_subparsers(dest="command", required=True)
 
