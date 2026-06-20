@@ -10,6 +10,9 @@ dependencies = [
     "yfinance",
     "fastapi",
     "uvicorn",
+    "python-docx",
+    "pypdf",
+    "python-multipart",
 ]
 
 [dependency-groups]
