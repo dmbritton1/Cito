@@ -34,6 +34,10 @@ class PreviewRequest(BaseModel):
     document_text: str = ""
 
 
+class CalendarRequest(BaseModel):
+    url: str = ""
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return _INDEX.read_text()
@@ -57,13 +61,22 @@ def send(req: SendRequest) -> dict:
 def get_config() -> dict:
     cfg = config.load_config()
     return {"voice": cfg.get("voice", ""), "preset": cfg.get("preset", config.DEFAULT_PRESET),
-            "presets": config.PRESETS}
+            "presets": config.PRESETS, "calendar_url": cfg.get("calendar_url", "")}
 
 
 @app.post("/voice")
 def save_voice(req: VoiceRequest) -> dict:
     saved = config.save_config({"voice": req.voice, "preset": req.preset})
     return {"ok": True, **saved}
+
+
+@app.post("/calendar")
+def save_calendar(req: CalendarRequest) -> dict:
+    url = req.url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="Enter a valid http(s) calendar feed URL.")
+    saved = config.save_config({"calendar_url": url})
+    return {"ok": True, "calendar_url": saved["calendar_url"]}
 
 
 @app.post("/preview")

@@ -94,3 +94,32 @@ def test_generate_threads_document_text(monkeypatch):
     client = TestClient(webapp.app)
     r = client.post("/generate", json={"sources": [], "document_text": "hello"})
     assert r.json()["text"] == "DOC[hello]"
+
+
+def test_config_includes_calendar_url(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    monkeypatch.setattr("cito.web.app.config.load_config",
+                        lambda: {"voice": "", "preset": "Friendly", "calendar_url": "https://x/f.ics"})
+    client = TestClient(webapp.app)
+    assert client.get("/config").json()["calendar_url"] == "https://x/f.ics"
+
+
+def test_post_calendar_saves_valid_url(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    saved = {}
+    monkeypatch.setattr("cito.web.app.config.save_config",
+                        lambda updates: saved.update(updates) or {"calendar_url": updates["calendar_url"]})
+    client = TestClient(webapp.app)
+    r = client.post("/calendar", json={"url": "https://example.com/feed.ics"})
+    assert r.status_code == 200
+    assert saved["calendar_url"] == "https://example.com/feed.ics"
+
+
+def test_post_calendar_rejects_non_url():
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    client = TestClient(webapp.app)
+    r = client.post("/calendar", json={"url": "not-a-url"})
+    assert r.status_code == 400
