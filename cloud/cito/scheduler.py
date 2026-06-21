@@ -3,14 +3,14 @@
 The scheduler lives in the web process; jobs fire only while the console runs.
 """
 
-from datetime import datetime
-
+import tzlocal
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from cito import announcements, pipeline
 
-_LOCAL_TZ = datetime.now().astimezone().tzinfo
+# A DST-aware local zone (not a fixed offset), so "8:30 AM" stays 8:30 across DST changes.
+_LOCAL_TZ = tzlocal.get_localzone()
 _scheduler = BackgroundScheduler(timezone=_LOCAL_TZ)
 
 
