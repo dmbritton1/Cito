@@ -44,6 +44,24 @@ func run(url string, driver Driver) error {
 	}
 	defer conn.Close()
 	log.Println("connected to cloud")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := conn.WriteJSON(map[string]string{"type": "heartbeat"}); err != nil {
+					return // connection is dead; the read loop will error and trigger reconnect
+				}
+			}
+		}
+	}()
+
 	for {
 		_, data, err := conn.ReadMessage()
 		if err != nil {
@@ -67,9 +85,6 @@ func run(url string, driver Driver) error {
 			continue
 		}
 		n := (len(mulaw) + payloadSize - 1) / payloadSize
-		if err := conn.WriteJSON(map[string]any{"type": "ack", "packets": n}); err != nil {
-			return err // write failure means the connection is dead; reconnect
-		}
 		log.Printf("received announce → sent %d packets", n)
 	}
 }

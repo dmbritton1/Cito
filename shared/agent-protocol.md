@@ -22,17 +22,18 @@ The agent base64-decodes `audio_b64` and delivers it via the driver named by `co
 (currently always the multicast RTP driver) to `addr:port`. Audio is embedded (files are
 tens of KB). REST fallback, SIP, and agent→cloud status are later phases.
 
-## Delivery acknowledgement
+## Heartbeat
 
-After successfully delivering an announcement, the agent sends an ack back over the same
-socket:
+The agent sends a heartbeat message every ~2 seconds to signal it is alive:
 
 ```json
-{ "type": "ack", "packets": <int> }
+{ "type": "heartbeat" }
 ```
 
-where `packets` is the number of RTP packets transmitted. The cloud treats any
-agent→cloud message as delivery confirmation. If no ack arrives within ~5 seconds of
-sending the announcement, the cloud falls back to local multicast rather than silently
-dropping the audio. This guards against the case where the agent process has died but the
-WebSocket connection has not yet been closed at the TCP/keepalive level.
+The cloud considers the agent gone if it has not received a heartbeat (or any message)
+within ~6 seconds and falls back to local multicast. This guards against the case where
+the agent process has died but the WebSocket connection has not yet been closed at the
+TCP/keepalive level.
+
+Delivery (`announce`) is fire-and-forget: the cloud sends the announce message and does
+not wait for any acknowledgement from the agent.
