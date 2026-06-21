@@ -106,9 +106,11 @@
       for (const rec of items) {
         const what = rec.kind === "sources" ? rec.sources.join(", ") : "“" + rec.message + "”";
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${rec.name}</td><td>${rec.time} · ${rec.days.join(",")}</td>` +
-          `<td>${what}</td><td></td>`;
-        const actions = tr.lastElementChild;
+        const nameTd = document.createElement("td"); nameTd.textContent = rec.name;
+        const whenTd = document.createElement("td"); whenTd.textContent = `${rec.time} · ${rec.days.join(",")}`;
+        const whatTd = document.createElement("td"); whatTd.textContent = what;
+        const actions = document.createElement("td");
+        tr.append(nameTd, whenTd, whatTd, actions);
         const mk = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; actions.appendChild(b); };
         mk("Run now", async () => { status("Running " + rec.name + "..."); const r = await fetch(`/announcements/${rec.id}/run`, {method:"POST"}); const d = await r.json(); status(r.ok ? "Ran: " + d.text : "Run failed"); });
         mk("Edit", () => { fillForm(rec); window.scrollTo(0, document.body.scrollHeight); });

@@ -175,6 +175,35 @@ def test_delete_unknown_returns_404(monkeypatch):
     assert client.delete("/announcements/nope").status_code == 404
 
 
+def test_update_announcement_reschedules(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    rec = {"id": "x", "name": "Renamed", "kind": "message", "sources": [],
+           "message": "Hi", "time": "09:00", "days": ["mon"]}
+    scheduled = {}
+    monkeypatch.setattr("cito.web.app.announcements.update", lambda ann_id, data: rec)
+    monkeypatch.setattr("cito.web.app.scheduler.reschedule", lambda r: scheduled.update(r))
+    client = TestClient(webapp.app)
+    r = client.put("/announcements/x", json={"name": "Renamed", "kind": "message",
+                   "message": "Hi", "time": "09:00", "days": ["mon"]})
+    assert r.status_code == 200
+    assert scheduled["id"] == "x"
+
+
+def test_update_unknown_returns_404(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    from cito.announcements import AnnouncementNotFound
+
+    def boom(ann_id, data):
+        raise AnnouncementNotFound("nope")
+    monkeypatch.setattr("cito.web.app.announcements.update", boom)
+    client = TestClient(webapp.app)
+    r = client.put("/announcements/nope", json={"name": "x", "kind": "message",
+                   "message": "Hi", "time": "09:00", "days": ["mon"]})
+    assert r.status_code == 404
+
+
 def test_run_announcement_now(monkeypatch):
     from fastapi.testclient import TestClient
     from cito.web import app as webapp

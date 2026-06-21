@@ -54,6 +54,16 @@ def test_get_missing_raises_not_found(tmp_path):
         announcements.get("nope", tmp_path / "a.json")
 
 
+def test_update_missing_raises_not_found(tmp_path):
+    with pytest.raises(AnnouncementNotFound):
+        announcements.update("nope", VALID, tmp_path / "a.json")
+
+
+def test_delete_missing_raises_not_found(tmp_path):
+    with pytest.raises(AnnouncementNotFound):
+        announcements.delete("nope", tmp_path / "a.json")
+
+
 @pytest.mark.parametrize("bad", [
     {**VALID, "time": "25:00"},
     {**VALID, "days": []},

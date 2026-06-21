@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Cito Console", lifespan=lifespan)
 _INDEX = Path(__file__).parent / "index.html"
+_ANNOUNCEMENTS = Path(__file__).parent / "announcements.html"
 
 
 class GenerateRequest(BaseModel):
@@ -162,4 +163,4 @@ def run_announcement_now(ann_id: str) -> dict:
 
 @app.get("/announcements-ui", response_class=HTMLResponse)
 def announcements_ui() -> str:
-    return (Path(__file__).parent / "announcements.html").read_text()
+    return _ANNOUNCEMENTS.read_text()

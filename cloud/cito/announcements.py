@@ -79,11 +79,11 @@ def create(data: dict, path: Path = STORE_PATH) -> dict:
 
 
 def update(ann_id: str, data: dict, path: Path = STORE_PATH) -> dict:
-    rec = validate(data)
-    rec["id"] = ann_id
     items = _load(path)
     for i, item in enumerate(items):
         if item["id"] == ann_id:
+            rec = validate(data)
+            rec["id"] = ann_id
             items[i] = rec
             _save(items, path)
             return rec
