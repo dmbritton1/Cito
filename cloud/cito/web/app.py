@@ -191,7 +191,8 @@ async def agent_ws(ws: WebSocket) -> None:
     agent_link.register(ws, asyncio.get_running_loop())
     try:
         while True:
-            await ws.receive_text()  # drain keepalives; block until disconnect
+            await ws.receive_text()  # the agent sends acks; any message clears the wait
+            agent_link.note_ack()
     except WebSocketDisconnect:
         pass
     finally:

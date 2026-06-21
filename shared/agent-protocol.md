@@ -21,3 +21,18 @@ The cloud pushes one JSON message per announcement:
 The agent base64-decodes `audio_b64` and delivers it via the driver named by `codec`
 (currently always the multicast RTP driver) to `addr:port`. Audio is embedded (files are
 tens of KB). REST fallback, SIP, and agent→cloud status are later phases.
+
+## Delivery acknowledgement
+
+After successfully delivering an announcement, the agent sends an ack back over the same
+socket:
+
+```json
+{ "type": "ack", "packets": <int> }
+```
+
+where `packets` is the number of RTP packets transmitted. The cloud treats any
+agent→cloud message as delivery confirmation. If no ack arrives within ~5 seconds of
+sending the announcement, the cloud falls back to local multicast rather than silently
+dropping the audio. This guards against the case where the agent process has died but the
+WebSocket connection has not yet been closed at the TCP/keepalive level.

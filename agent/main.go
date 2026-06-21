@@ -66,6 +66,10 @@ func run(url string, driver Driver) error {
 			log.Printf("deliver error: %v", err)
 			continue
 		}
-		log.Printf("received announce → sent %d packets", (len(mulaw)+payloadSize-1)/payloadSize)
+		n := (len(mulaw) + payloadSize - 1) / payloadSize
+		if err := conn.WriteJSON(map[string]any{"type": "ack", "packets": n}); err != nil {
+			return err // write failure means the connection is dead; reconnect
+		}
+		log.Printf("received announce → sent %d packets", n)
 	}
 }
