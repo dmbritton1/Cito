@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cito — Announcements</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+    button { font-size: .95rem; padding: .35rem .8rem; margin-right: .4rem; cursor: pointer; }
+    input[type=text], textarea { width: 100%; padding: .4rem; box-sizing: border-box; }
+    label { margin-right: .8rem; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    td, th { text-align: left; padding: .4rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    #status { margin-top: 1rem; color: #555; min-height: 1.2rem; }
+    .muted { color: #777; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>Cito — Scheduled Announcements</h1>
+  <p><a href="/">← Back to console</a></p>
+
+  <table id="list"><thead>
+    <tr><th>Name</th><th>When</th><th>What</th><th>Actions</th></tr>
+  </thead><tbody id="rows"></tbody></table>
+
+  <fieldset>
+    <legend>New / edit announcement</legend>
+    <input type="hidden" id="edit-id" />
+    <p><label>Name <input type="text" id="f-name" /></label></p>
+    <p>
+      <label><input type="radio" name="kind" value="sources" checked /> Sources</label>
+      <label><input type="radio" name="kind" value="message" /> Fixed message</label>
+    </p>
+    <p id="sources-row">
+      <label><input type="checkbox" id="s-weather" value="weather" /> Weather</label>
+      <label><input type="checkbox" id="s-stocks" value="stocks" /> Stocks</label>
+      <label><input type="checkbox" id="s-calendar" value="calendar" /> Calendar</label>
+    </p>
+    <p id="message-row" style="display:none;">
+      <textarea id="f-message" placeholder="Reminder text spoken verbatim..."></textarea>
+    </p>
+    <p><label>Time <input type="text" id="f-time" placeholder="08:30" style="width:6rem;" /></label>
+       <span class="muted">24-hour HH:MM, local time</span></p>
+    <p id="days-row"></p>
+    <button id="save">Save</button>
+    <button id="reset">Clear form</button>
+  </fieldset>
+  <div id="status"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const status = (m) => { $("status").textContent = m; };
+    const DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
+
+    DAYS.forEach((d) => {
+      const l = document.createElement("label");
+      l.innerHTML = `<input type="checkbox" class="day" value="${d}" /> ${d}`;
+      $("days-row").appendChild(l);
+    });
+
+    function selectedKind() {
+      return document.querySelector("input[name=kind]:checked").value;
+    }
+    function syncKindRows() {
+      $("sources-row").style.display = selectedKind() === "sources" ? "block" : "none";
+      $("message-row").style.display = selectedKind() === "message" ? "block" : "none";
+    }
+    document.querySelectorAll("input[name=kind]").forEach((r) => r.onchange = syncKindRows);
+
+    function readForm() {
+      const kind = selectedKind();
+      return {
+        name: $("f-name").value,
+        kind,
+        sources: ["weather","stocks","calendar"].filter((s) => $("s-" + s).checked),
+        message: $("f-message").value,
+        time: $("f-time").value,
+        days: DAYS.filter((d) => document.querySelector(`.day[value=${d}]`).checked),
+      };
+    }
+    function resetForm() {
+      $("edit-id").value = "";
+      $("f-name").value = ""; $("f-message").value = ""; $("f-time").value = "";
+      document.querySelectorAll(".day, #s-weather, #s-stocks, #s-calendar").forEach((c) => c.checked = false);
+      document.querySelector("input[name=kind][value=sources]").checked = true;
+      syncKindRows();
+    }
+    $("reset").onclick = resetForm;
+
+    function fillForm(rec) {
+      $("edit-id").value = rec.id;
+      $("f-name").value = rec.name;
+      document.querySelector(`input[name=kind][value=${rec.kind}]`).checked = true;
+      syncKindRows();
+      ["weather","stocks","calendar"].forEach((s) => $("s-" + s).checked = rec.sources.includes(s));
+      $("f-message").value = rec.message || "";
+      $("f-time").value = rec.time;
+      DAYS.forEach((d) => document.querySelector(`.day[value=${d}]`).checked = rec.days.includes(d));
+    }
+
+    async function load() {
+      const items = await (await fetch("/announcements")).json();
+      $("rows").innerHTML = "";
+      for (const rec of items) {
+        const what = rec.kind === "sources" ? rec.sources.join(", ") : "“" + rec.message + "”";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${rec.name}</td><td>${rec.time} · ${rec.days.join(",")}</td>` +
+          `<td>${what}</td><td></td>`;
+        const actions = tr.lastElementChild;
+        const mk = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; actions.appendChild(b); };
+        mk("Run now", async () => { status("Running " + rec.name + "..."); const r = await fetch(`/announcements/${rec.id}/run`, {method:"POST"}); const d = await r.json(); status(r.ok ? "Ran: " + d.text : "Run failed"); });
+        mk("Edit", () => { fillForm(rec); window.scrollTo(0, document.body.scrollHeight); });
+        mk("Delete", async () => { await fetch(`/announcements/${rec.id}`, {method:"DELETE"}); status("Deleted."); load(); });
+        $("rows").appendChild(tr);
+      }
+    }
+
+    $("save").onclick = async () => {
+      const id = $("edit-id").value;
+      const url = id ? `/announcements/${id}` : "/announcements";
+      const method = id ? "PUT" : "POST";
+      status("Saving...");
+      const r = await fetch(url, { method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(readForm()) });
+      if (!r.ok) { status("Rejected: " + ((await r.json()).detail || "invalid")); return; }
+      status("Saved."); resetForm(); load();
+    };
+
+    syncKindRows();
+    load();
+  </script>
+</body>
+</html>
