@@ -34,3 +34,4 @@ announcements.json
 .DS_Store
 .idea/
 .vscode/
+/agent/agent
