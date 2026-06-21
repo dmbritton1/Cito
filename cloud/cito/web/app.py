@@ -1,5 +1,6 @@
 """One-page dev console over the headless pipeline."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -7,10 +8,19 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from cito import config, documents, pipeline
+from cito import announcements, config, documents, pipeline, scheduler
+from cito.announcements import AnnouncementError, AnnouncementNotFound
 
 load_dotenv()
-app = FastAPI(title="Cito Console")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start()
+    yield
+
+
+app = FastAPI(title="Cito Console", lifespan=lifespan)
 _INDEX = Path(__file__).parent / "index.html"
 
 
@@ -36,6 +46,15 @@ class PreviewRequest(BaseModel):
 
 class CalendarRequest(BaseModel):
     url: str = ""
+
+
+class AnnouncementBody(BaseModel):
+    name: str = ""
+    kind: str = "sources"
+    sources: list[str] = []
+    message: str = ""
+    time: str = ""
+    days: list[str] = []
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -93,3 +112,54 @@ async def upload(file: UploadFile) -> dict:
     except documents.DocumentError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"text": text, "chars": len(text), "filename": file.filename}
+
+
+@app.get("/announcements")
+def list_announcements() -> list:
+    return announcements.list_announcements()
+
+
+@app.post("/announcements")
+def create_announcement(body: AnnouncementBody) -> dict:
+    try:
+        rec = announcements.create(body.model_dump())
+    except AnnouncementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    scheduler.reschedule(rec)
+    return rec
+
+
+@app.put("/announcements/{ann_id}")
+def update_announcement(ann_id: str, body: AnnouncementBody) -> dict:
+    try:
+        rec = announcements.update(ann_id, body.model_dump())
+    except AnnouncementNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AnnouncementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    scheduler.reschedule(rec)
+    return rec
+
+
+@app.delete("/announcements/{ann_id}")
+def delete_announcement(ann_id: str) -> dict:
+    try:
+        announcements.delete(ann_id)
+    except AnnouncementNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    scheduler.unschedule(ann_id)
+    return {"ok": True}
+
+
+@app.post("/announcements/{ann_id}/run")
+def run_announcement_now(ann_id: str) -> dict:
+    try:
+        rec = announcements.get(ann_id)
+    except AnnouncementNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True, "text": scheduler.run_announcement(rec)}
+
+
+@app.get("/announcements-ui", response_class=HTMLResponse)
+def announcements_ui() -> str:
+    return (Path(__file__).parent / "announcements.html").read_text()
