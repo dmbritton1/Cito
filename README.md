@@ -79,6 +79,14 @@ time + days, and Save. **Run now** fires any of them immediately for testing. No
 scheduler runs inside the console process, so run uvicorn **without `--reload`** for
 scheduling, and jobs fire only while the server is up.
 
+**On-prem agent (Phase 2b):** the cloud can deliver through a small Go agent instead of
+sending RTP itself. Build/run it from `agent/`: `go run .` (it reads `CITO_CLOUD_WS`,
+default `ws://127.0.0.1:8000/agent`, and `CITO_AGENT_TOKEN`, default `dev-token`). With the
+agent connected, the cloud ships finished audio to it over WSS and the agent does the
+multicast; with no agent connected, the cloud falls back to its own in-process multicast.
+The cloud log shows which path delivered (`delivered via agent` vs `no agent — local
+fallback`).
+
 ## Status
 
 Phase 0 and Phase 1 complete. Phase 3a complete: layered prompt with `<say>` extraction
@@ -88,4 +96,6 @@ complete: document input pipeline (.txt/.docx/.pdf → whole-doc injection) as a
 input that combines with the sources. Phase 3c complete: calendar content source (iCal feed
 → today's events with recurrence) as another combinable toggle. Phase 2a complete: an
 APScheduler-backed scheduler with saved announcements (source-based or fixed-message) on a
-time + day-of-week schedule, managed from a console page with Run-now.
+time + day-of-week schedule, managed from a console page with Run-now. Phase 2b complete: a
+Go on-prem agent that the cloud delivers finished audio to over WSS (it does the multicast),
+with automatic fallback to in-process multicast when no agent is connected.
