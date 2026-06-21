@@ -72,6 +72,12 @@ field and Save, then tick **Calendar** — it reads **today's** events (recurrin
 and combines into one announcement like any other source. (Event-driven triggers and OAuth
 calendars come later.)
 
+Open **Scheduled announcements** (linked from the console) to save announcements that fire
+automatically: pick **Sources** (generated fresh each time) or a **fixed message**, set a
+time + days, and Save. **Run now** fires any of them immediately for testing. Note: the
+scheduler runs inside the console process, so run uvicorn **without `--reload`** for
+scheduling, and jobs fire only while the server is up.
+
 ## Status
 
 Phase 0 and Phase 1 complete. Phase 3a complete: layered prompt with `<say>` extraction
@@ -79,4 +85,6 @@ so Gemma returns clean announcements (not just the fallback), plus an admin voic
 layer (presets, validation, live preview) across the engine, CLI, and console. Phase 3b
 complete: document input pipeline (.txt/.docx/.pdf → whole-doc injection) as a toggleable
 input that combines with the sources. Phase 3c complete: calendar content source (iCal feed
-→ today's events with recurrence) as another combinable toggle.
+→ today's events with recurrence) as another combinable toggle. Phase 2a complete: an
+APScheduler-backed scheduler with saved announcements (source-based or fixed-message) on a
+time + day-of-week schedule, managed from a console page with Run-now.
