@@ -214,3 +214,24 @@ def test_run_announcement_now(monkeypatch):
     client = TestClient(webapp.app)
     r = client.post("/announcements/x/run")
     assert r.json() == {"ok": True, "text": "SPOKEN"}
+
+
+def test_agent_ws_accepts_valid_token(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cito.web import app as webapp
+    monkeypatch.setattr("cito.web.app.AGENT_TOKEN", "test-token")
+    client = TestClient(webapp.app)
+    with client.websocket_connect("/agent?token=test-token") as ws:
+        assert ws is not None  # handshake accepted
+
+
+def test_agent_ws_rejects_bad_token(monkeypatch):
+    import pytest
+    from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+    from cito.web import app as webapp
+    monkeypatch.setattr("cito.web.app.AGENT_TOKEN", "test-token")
+    client = TestClient(webapp.app)
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/agent?token=wrong"):
+            pass

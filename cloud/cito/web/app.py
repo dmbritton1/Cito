@@ -1,17 +1,21 @@
 """One-page dev console over the headless pipeline."""
 
+import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from cito import announcements, config, documents, pipeline, scheduler
+from cito import agent_link, announcements, config, documents, pipeline, scheduler
 from cito.announcements import AnnouncementError, AnnouncementNotFound
 
 load_dotenv()
+
+AGENT_TOKEN = os.environ.get("CITO_AGENT_TOKEN", "dev-token")
 
 
 @asynccontextmanager
@@ -168,3 +172,19 @@ def run_announcement_now(ann_id: str) -> dict:
 @app.get("/announcements-ui", response_class=HTMLResponse)
 def announcements_ui() -> str:
     return _ANNOUNCEMENTS.read_text()
+
+
+@app.websocket("/agent")
+async def agent_ws(ws: WebSocket) -> None:
+    if ws.query_params.get("token") != AGENT_TOKEN:
+        await ws.close(code=1008)
+        return
+    await ws.accept()
+    agent_link.register(ws, asyncio.get_running_loop())
+    try:
+        while True:
+            await ws.receive_text()  # drain keepalives; block until disconnect
+    except WebSocketDisconnect:
+        pass
+    finally:
+        agent_link.unregister(ws)
