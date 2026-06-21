@@ -158,7 +158,11 @@ def run_announcement_now(ann_id: str) -> dict:
         rec = announcements.get(ann_id)
     except AnnouncementNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"ok": True, "text": scheduler.run_announcement(rec)}
+    try:
+        text = scheduler.run_announcement(rec)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "text": text}
 
 
 @app.get("/announcements-ui", response_class=HTMLResponse)

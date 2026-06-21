@@ -46,7 +46,8 @@ From `cloud/`:
 
 ```bash
 # Web console (then open http://127.0.0.1:8000)
-uv run uvicorn cito.web.app:app --reload
+# Omit --reload when using the scheduler (reload spawns a 2nd process that double-fires jobs).
+uv run uvicorn cito.web.app:app
 
 # Or the CLI
 uv run python -m cito.run announce --source weather --source stocks
