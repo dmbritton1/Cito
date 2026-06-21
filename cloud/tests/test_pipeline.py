@@ -131,3 +131,33 @@ def test_generate_announcement_ignores_blank_document(monkeypatch):
     from cito import pipeline
     pipeline.generate_announcement([], document_text="   ")
     assert captured["fragments"] == []
+
+
+def test_send_uses_agent_when_connected(monkeypatch, tmp_path):
+    from cito import pipeline
+    ulaw = tmp_path / "out.ulaw"
+    ulaw.write_bytes(b"\xff" * 320)  # 2 packets
+    monkeypatch.setattr("cito.pipeline.tts.synthesize", lambda text: "out.mp3")
+    monkeypatch.setattr("cito.pipeline.audio.encode_mulaw", lambda mp3: ulaw)
+    monkeypatch.setattr("cito.pipeline.agent_link.deliver", lambda p, a, port: True)
+    monkeypatch.setattr("cito.pipeline.MulticastRTPSender",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not send locally")))
+    result = pipeline.send_announcement("hello")
+    assert result.packets == 2  # computed from the µ-law length, not the local sender
+
+
+def test_send_falls_back_to_local_without_agent(monkeypatch, tmp_path):
+    from cito import pipeline
+    ulaw = tmp_path / "out.ulaw"
+    ulaw.write_bytes(b"\xff" * 160)
+    monkeypatch.setattr("cito.pipeline.tts.synthesize", lambda text: "out.mp3")
+    monkeypatch.setattr("cito.pipeline.audio.encode_mulaw", lambda mp3: ulaw)
+    monkeypatch.setattr("cito.pipeline.agent_link.deliver", lambda p, a, port: False)
+
+    class FakeSender:
+        def send(self, path):
+            return 7
+
+    monkeypatch.setattr("cito.pipeline.MulticastRTPSender", lambda *a, **k: FakeSender())
+    result = pipeline.send_announcement("hello")
+    assert result.packets == 7  # local sender's count

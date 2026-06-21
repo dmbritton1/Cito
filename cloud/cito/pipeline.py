@@ -1,12 +1,17 @@
 """The shared spine: both the CLI and the web console call these two functions."""
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from cito import audio, config, documents, tts
+from cito import agent_link, audio, config, documents, tts
 from cito.delivery import MulticastRTPSender
 from cito.engine import generate_script
 from cito.sources import SOURCES
+
+logger = logging.getLogger("cito.pipeline")
+DELIVERY_ADDR = "224.0.1.75"
+DELIVERY_PORT = 10000
 
 
 @dataclass
@@ -41,10 +46,15 @@ def generate_announcement(
 
 
 def send_announcement(text: str) -> SendResult:
-    """Speak `text` verbatim: TTS -> µ-law -> RTP multicast."""
+    """Speak `text`: TTS -> µ-law -> deliver via the agent if connected, else locally."""
     if not text or not text.strip():
         raise ValueError("cannot send an empty announcement")
     mp3 = tts.synthesize(text.strip())
-    ulaw = audio.encode_mulaw(Path(mp3))
-    packets = MulticastRTPSender().send(Path(ulaw))
+    ulaw = Path(audio.encode_mulaw(Path(mp3)))
+    if agent_link.deliver(ulaw, DELIVERY_ADDR, DELIVERY_PORT):
+        packets = (ulaw.stat().st_size + 159) // 160
+        logger.info("delivered via agent (%d packets)", packets)
+        return SendResult(packets=packets)
+    logger.info("no agent — local fallback")
+    packets = MulticastRTPSender(DELIVERY_ADDR, DELIVERY_PORT).send(ulaw)
     return SendResult(packets=packets)
