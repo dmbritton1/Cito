@@ -28,6 +28,7 @@ build/
 
 # Runtime app config (voice/personality)
 cito_config.json
+announcements.json
 
 # OS / editor
 .DS_Store

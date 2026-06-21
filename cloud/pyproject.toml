@@ -15,6 +15,7 @@ dependencies = [
     "python-multipart",
     "icalendar",
     "recurring-ical-events",
+    "APScheduler",
 ]
 
 [dependency-groups]
