@@ -1,6 +1,7 @@
 """One-page dev console over the headless pipeline."""
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +15,13 @@ from cito import agent_link, announcements, config, documents, pipeline, schedul
 from cito.announcements import AnnouncementError, AnnouncementNotFound
 
 load_dotenv()
+
+# Surface cito.* INFO logs (e.g. the delivery path: "delivered via agent" / "local
+# fallback") to stderr — app loggers aren't wired to output under uvicorn by default.
+_cito_log = logging.getLogger("cito")
+_cito_log.setLevel(logging.INFO)
+if not _cito_log.handlers:
+    _cito_log.addHandler(logging.StreamHandler())
 
 AGENT_TOKEN = os.environ.get("CITO_AGENT_TOKEN", "dev-token")
 
