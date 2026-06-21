@@ -32,6 +32,7 @@ def test_send_announcement_wires_tts_encode_delivery():
 
     with patch("cito.pipeline.tts.synthesize", side_effect=fake_tts), \
          patch("cito.pipeline.audio.encode_mulaw", return_value="a.ulaw"), \
+         patch("cito.pipeline.agent_link.deliver", return_value=False), \
          patch("cito.pipeline.MulticastRTPSender") as sender_cls:
         sender_cls.return_value.send.return_value = 42
         result = pipeline.send_announcement("Hello team.")

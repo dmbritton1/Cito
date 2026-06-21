@@ -23,7 +23,11 @@ def test_deliver_sends_message_when_registered(monkeypatch, tmp_path):
     # Bridge: capture the coroutine and run it, return a fake future.
     def fake_threadsafe(coro, loop):
         import asyncio
-        asyncio.new_event_loop().run_until_complete(coro)
+        ev = asyncio.new_event_loop()
+        try:
+            ev.run_until_complete(coro)
+        finally:
+            ev.close()
         return FakeFuture()
 
     monkeypatch.setattr("cito.agent_link.asyncio.run_coroutine_threadsafe", fake_threadsafe)
